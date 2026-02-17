@@ -235,3 +235,20 @@ export async function completeOnboarding(firstName: string, email: string) {
     throw error;
   }
 }
+
+export async function resetOnboarding() {
+  if (!db) {
+    await initDatabase();
+  }
+  
+  try {
+    await db!.runAsync(
+      'DELETE FROM onboarding WHERE id = ?',
+      ['onboarding_1']
+    );
+    console.log('Onboarding reset');
+  } catch (error) {
+    console.error('Error resetting onboarding:', error);
+    throw error;
+  }
+}

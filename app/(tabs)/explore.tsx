@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { UserProfile } from '@/types/menu';
-import { getUserProfile, saveUserProfile, initDatabase, checkOnboardingStatus } from '@/utils/database';
+import { getUserProfile, saveUserProfile, initDatabase, checkOnboardingStatus, resetOnboarding } from '@/utils/database';
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();
@@ -87,6 +87,7 @@ export default function ProfileScreen() {
   const handleLogout = async () => {
     try {
       // Reset onboarding status and navigate to onboarding screen
+      await resetOnboarding();
       router.replace('/onboarding');
     } catch (error) {
       console.error('Error logging out:', error);
