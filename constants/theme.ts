@@ -5,25 +5,39 @@
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+// Little Lemon Branding Colors
+const primaryGreen = '#495E57';
+const secondaryGreen = '#3D4C47';
+const accentYellow = '#F4CE14';
+const lightGray = '#EDEFEE';
+const darkText = '#333333';
 
 export const Colors = {
   light: {
-    text: '#11181C',
+    text: darkText,
     background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    tint: primaryGreen,
+    icon: primaryGreen,
+    tabIconDefault: primaryGreen,
+    tabIconSelected: accentYellow,
+    primary: primaryGreen,
+    secondary: secondaryGreen,
+    accent: accentYellow,
+    lightGray: lightGray,
+    darkText: darkText,
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    text: lightGray,
+    background: '#1a1a1a',
+    tint: accentYellow,
+    icon: lightGray,
+    tabIconDefault: lightGray,
+    tabIconSelected: accentYellow,
+    primary: primaryGreen,
+    secondary: secondaryGreen,
+    accent: accentYellow,
+    lightGray: lightGray,
+    darkText: darkText,
   },
 };
 

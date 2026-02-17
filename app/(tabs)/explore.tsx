@@ -1,112 +1,409 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  Switch,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Image,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { UserProfile } from '@/types/menu';
+import { getUserProfile, saveUserProfile, initDatabase, checkOnboardingStatus } from '@/utils/database';
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+export default function ProfileScreen() {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
+  const router = useRouter();
 
-export default function TabTwoScreen() {
+  const [profile, setProfile] = useState<UserProfile>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phoneNumber: '',
+    orderStatusesNotification: true,
+    passwordChangesNotification: true,
+    specialOffersNotification: true,
+    newsletterNotification: true,
+  });
+
+  const [initialProfile, setInitialProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      await initDatabase();
+      const userProfile = await getUserProfile();
+      if (userProfile) {
+        setProfile(userProfile);
+        setInitialProfile(userProfile);
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (field: keyof Omit<UserProfile, 'id'>, value: string | boolean) => {
+    const updated = { ...profile, [field]: value };
+    setProfile(updated);
+    setHasChanges(true);
+  };
+
+  const handleSaveChanges = async () => {
+    try {
+      setLoading(true);
+      await saveUserProfile(profile);
+      setInitialProfile(profile);
+      setHasChanges(false);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDiscardChanges = () => {
+    if (initialProfile) {
+      setProfile(initialProfile);
+      setHasChanges(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      // Reset onboarding status and navigate to onboarding screen
+      router.replace('/onboarding');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* Header */}
+        <View style={[styles.header, { backgroundColor: colors.background }]}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={[styles.backButton, { color: colors.primary }]}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerLogo}>🍋</Text>
+          <Text style={[styles.headerLogoText, { color: colors.text }]}>LITTLE LEMON</Text>
+          <View style={styles.avatarPlaceholder}>
+            <Text style={styles.avatarText}>👤</Text>
+          </View>
+        </View>
+
+        {/* Personal Information Section */}
+        <View style={[styles.section, { backgroundColor: colors.background }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal information</Text>
+
+          {/* Avatar */}
+          <View style={[styles.avatarSection, { backgroundColor: colors.lightGray }]}>
+            <Image
+              source={require('@/assets/images/profile-avatar.jpg')}
+              style={styles.avatarImage}
+            />
+            <View style={styles.avatarButtons}>
+              <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]}>
+                <Text style={[styles.buttonText, { color: '#fff' }]}>Change</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonBorder, { borderColor: colors.primary }]}
+              >
+                <Text style={[styles.buttonText, { color: colors.primary }]}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* First Name Input */}
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.text }]}>First name</Text>
+            <TextInput
+              style={[
+                styles.input,
+                { color: colors.text, backgroundColor: colors.lightGray }
+              ]}
+              value={profile.firstName}
+              onChangeText={(value) => handleInputChange('firstName', value)}
+              editable={!loading}
+            />
+          </View>
+
+          {/* Last Name Input */}
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.text }]}>Last name</Text>
+            <TextInput
+              style={[
+                styles.input,
+                { color: colors.text, backgroundColor: colors.lightGray }
+              ]}
+              value={profile.lastName}
+              onChangeText={(value) => handleInputChange('lastName', value)}
+              editable={!loading}
+            />
+          </View>
+
+          {/* Email Input */}
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.text }]}>Email</Text>
+            <TextInput
+              style={[
+                styles.input,
+                { color: colors.text, backgroundColor: colors.lightGray }
+              ]}
+              value={profile.email}
+              onChangeText={(value) => handleInputChange('email', value)}
+              editable={!loading}
+            />
+          </View>
+
+          {/* Phone Number Input */}
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.text }]}>Phone number</Text>
+            <TextInput
+              style={[
+                styles.input,
+                { color: colors.text, backgroundColor: colors.lightGray }
+              ]}
+              value={profile.phoneNumber}
+              onChangeText={(value) => handleInputChange('phoneNumber', value)}
+              editable={!loading}
+            />
+          </View>
+        </View>
+
+        {/* Email Notifications Section */}
+        <View style={[styles.section, { backgroundColor: colors.background }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Email notifications</Text>
+
+          {/* Order Statuses */}
+          <View style={styles.notificationRow}>
+            <Text style={[styles.notificationLabel, { color: colors.text }]}>Order statuses</Text>
+            <Switch
+              value={profile.orderStatusesNotification}
+              onValueChange={(value) => handleInputChange('orderStatusesNotification', value)}
+              trackColor={{ false: colors.lightGray, true: colors.accent }}
+              thumbColor={colors.primary}
+            />
+          </View>
+
+          {/* Password Changes */}
+          <View style={styles.notificationRow}>
+            <Text style={[styles.notificationLabel, { color: colors.text }]}>Password changes</Text>
+            <Switch
+              value={profile.passwordChangesNotification}
+              onValueChange={(value) => handleInputChange('passwordChangesNotification', value)}
+              trackColor={{ false: colors.lightGray, true: colors.accent }}
+              thumbColor={colors.primary}
+            />
+          </View>
+
+          {/* Special Offers */}
+          <View style={styles.notificationRow}>
+            <Text style={[styles.notificationLabel, { color: colors.text }]}>Special offers</Text>
+            <Switch
+              value={profile.specialOffersNotification}
+              onValueChange={(value) => handleInputChange('specialOffersNotification', value)}
+              trackColor={{ false: colors.lightGray, true: colors.accent }}
+              thumbColor={colors.primary}
+            />
+          </View>
+
+          {/* Newsletter */}
+          <View style={styles.notificationRow}>
+            <Text style={[styles.notificationLabel, { color: colors.text }]}>Newsletter</Text>
+            <Switch
+              value={profile.newsletterNotification}
+              onValueChange={(value) => handleInputChange('newsletterNotification', value)}
+              trackColor={{ false: colors.lightGray, true: colors.accent }}
+              thumbColor={colors.primary}
+            />
+          </View>
+        </View>
+
+        {/* Logout Button */}
+        <TouchableOpacity
+          style={[styles.logoutButton, { backgroundColor: colors.accent }]}
+          onPress={handleLogout}
+        >
+          <Text style={[styles.logoutButtonText, { color: colors.text }]}>Log out</Text>
+        </TouchableOpacity>
+
+        {/* Action Buttons */}
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={[styles.button, styles.buttonBorder, { borderColor: colors.primary }]}
+            onPress={handleDiscardChanges}
+            disabled={!hasChanges}
+          >
+            <Text style={[styles.buttonText, { color: colors.primary }]}>Discard changes</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: colors.primary }]}
+            onPress={handleSaveChanges}
+            disabled={!hasChanges}
+          >
+            <Text style={[styles.buttonText, { color: '#fff' }]}>Save changes</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: {
+    flex: 1,
   },
-  titleContainer: {
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingTop: 16,
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
     gap: 8,
+  },
+  backButton: {
+    fontSize: 28,
+    fontWeight: '600',
+  },
+  headerLogo: {
+    fontSize: 20,
+    marginRight: 4,
+  },
+  headerLogoText: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1,
+    flex: 1,
+  },
+  avatarPlaceholder: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 16,
+  },
+  section: {
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  avatarSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 16,
+  },
+  avatarImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    overflow: 'hidden',
+  },
+  avatarButtons: {
+    flex: 1,
+    gap: 8,
+  },
+  button: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  buttonBorder: {
+    borderWidth: 1,
+    backgroundColor: 'transparent',
+  },
+  buttonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  input: {
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  notificationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  notificationLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  logoutButton: {
+    marginHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  logoutButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 16,
   },
 });

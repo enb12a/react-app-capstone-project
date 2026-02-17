@@ -1,98 +1,240 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  ScrollView,
+} from 'react-native';
+import { MenuItem, Category } from '@/types/menu';
+import { fetchMenuFromAPI } from '@/services/api';
+import { initDatabase, saveMenuItems, getMenuItems } from '@/utils/database';
+import MenuItemCard from '@/components/menu-item-card';
+import { Header } from '@/components/header';
+import { Hero } from '@/components/hero';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const CATEGORIES: Category[] = ['Starters', 'Mains', 'Desserts', 'Drinks'];
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
+  
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [filteredItems, setFilteredItems] = useState<MenuItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<Set<Category>>(new Set());
+  const [loading, setLoading] = useState(true);
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  useEffect(() => {
+    loadMenuData();
+  }, []);
+
+  useEffect(() => {
+    filterMenuItems();
+  }, [searchQuery, selectedCategories, menuItems]);
+
+  const loadMenuData = async () => {
+    try {
+      setLoading(true);
+      
+      // Initialize database
+      await initDatabase();
+      
+      // Check if we have data in the database
+      let items = await getMenuItems();
+      
+      if (items.length === 0) {
+        // Fetch from API if database is empty
+        items = await fetchMenuFromAPI();
+        await saveMenuItems(items);
+      }
+      
+      setMenuItems(items);
+      setFilteredItems(items);
+    } catch (error) {
+      console.error('Error loading menu data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterMenuItems = () => {
+    let filtered = menuItems;
+
+    // Filter by categories
+    if (selectedCategories.size > 0) {
+      filtered = filtered.filter((item) =>
+        selectedCategories.has(item.category as Category)
+      );
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      filtered = filtered.filter((item) =>
+        item.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    setFilteredItems(filtered);
+  };
+
+  const toggleCategory = (category: Category) => {
+    const newSelected = new Set(selectedCategories);
+    if (newSelected.has(category)) {
+      newSelected.delete(category);
+    } else {
+      newSelected.add(category);
+    }
+    setSelectedCategories(newSelected);
+  };
+
+  const renderMenuItem = ({ item }: { item: MenuItem }) => (
+    <MenuItemCard item={item} />
+  );
+
+  if (loading) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.text }]}>Loading menu...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
+      <Header />
+
+      {/* Main Content */}
+      <FlatList
+        data={filteredItems}
+        renderItem={renderMenuItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          <View>
+            {/* Hero Section */}
+            <Hero />
+
+            {/* Search Bar */}
+            <View style={[styles.searchContainer, { backgroundColor: colors.primary }]}>
+              <TextInput
+                style={[
+                  styles.searchInput,
+                  { color: colors.text, backgroundColor: colors.lightGray }
+                ]}
+                placeholder="Search"
+                placeholderTextColor={colors.icon}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
+
+            {/* Menu Breakdown Title */}
+            <View style={[styles.breakdownHeader, { backgroundColor: colors.background }]}>
+              <Text style={[styles.breakdownTitle, { color: colors.text }]}>ORDER FOR DELIVERY!</Text>
+            </View>
+
+            {/* Category Filter Buttons */}
+            <View style={[styles.filterContainer, { backgroundColor: colors.background }]}>
+              {CATEGORIES.map((category) => (
+                <TouchableOpacity
+                  key={category}
+                  style={[
+                    styles.filterButton,
+                    selectedCategories.has(category)
+                      ? { backgroundColor: colors.accent }
+                      : { backgroundColor: colors.lightGray }
+                  ]}
+                  onPress={() => toggleCategory(category)}
+                >
+                  <Text
+                    style={[
+                      styles.filterButtonText,
+                      selectedCategories.has(category)
+                        ? { color: colors.text }
+                        : { color: colors.primary }
+                    ]}
+                  >
+                    {category}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={[styles.emptyText, { color: colors.text }]}>No menu items found</Text>
+          </View>
+        }
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
+  container: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+  },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  searchInput: {
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+  },
+  breakdownHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  breakdownTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  filterButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  filterButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  listContent: {
+    paddingBottom: 16,
+  },
+  emptyContainer: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
   },
 });
